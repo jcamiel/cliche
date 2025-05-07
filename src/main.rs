@@ -49,15 +49,15 @@ fn main() {
 }
 
 fn print_running(f: &Path) {
-    eprintln!("{}: running", f.display())
+    eprintln!("{}: Running", f.display())
 }
 
 fn print_success(f: &Path) {
-    eprintln!("{}: success", f.display())
+    eprintln!("{}: Success", f.display())
 }
 
 fn print_failure(f: &Path) {
-    eprintln!("{}: failure", f.display())
+    eprintln!("{}: Failure", f.display())
 }
 
 fn print_io_error(error: Error) {

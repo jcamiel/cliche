@@ -1,7 +1,7 @@
 use crate::command::VerifyError::ExitCode;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{fs, io};
 
 pub struct CommandSpec {
     cmd: PathBuf,
@@ -21,7 +21,8 @@ impl CommandSpec {
     }
 
     pub fn execute(&self) -> Result<CommandResult, io::Error> {
-        let output = Command::new(self.cmd.as_os_str()).output()?;
+        let cmd = fs::canonicalize(&self.cmd)?;
+        let output = Command::new(cmd.as_os_str()).output()?;
 
         let exit_code = output.status.code().unwrap();
         let stdout = &output.stdout;
