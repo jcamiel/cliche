@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 
-APP=cliche-0.1.0
-HOST=x86_64-unknown-linux-gnu
-PACKAGE="$APP-$HOST"
+app=cliche
+version=0.1.0
 
-mkdir -p "target/$PACKAGE/bin"
-cp target/release/cliche "target/$PACKAGE/bin"
-tar -C target -czvf "target/$PACKAGE.tar.gz" "$PACKAGE"
+
+targets=("x86_64-unknown-linux-musl" "x86_64-unknown-linux-gnu")
+
+for target in "${targets[@]}"; do
+  package="$app-$version-$target"
+  mkdir -p "target/package/$package/bin"
+  cp "target/$target/release/cliche" "target/package/$package/bin"
+  tar -C target/package -czvf "target/$package.tar.gz" "$package"
+done
