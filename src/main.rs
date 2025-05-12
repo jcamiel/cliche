@@ -1,9 +1,10 @@
-use crate::command::{CommandSpec, VerifyError};
-use std::io::Error;
+use crate::command::CommandSpec;
+use crate::error::Error;
 use std::path::Path;
-use std::{env, process};
+use std::{env, io, process};
 
 mod command;
+mod error;
 
 const EXIT_OK: i32 = 0;
 const EXIT_IO_ERROR: i32 = 1;
@@ -39,7 +40,7 @@ fn main() {
         match ret {
             Ok(_) => print_success(f),
             Err(err) => {
-                print_verify_error(&err);
+                print_error(&err);
                 print_failure(f);
                 process::exit(EXIT_VERIFY_ERROR);
             }
@@ -60,18 +61,12 @@ fn print_failure(f: &Path) {
     eprintln!("{}: Failure", f.display())
 }
 
-fn print_io_error(error: Error) {
+fn print_io_error(error: io::Error) {
     eprintln!("--> error: {error}");
 }
 
-fn print_verify_error(error: &VerifyError) {
-    match error {
-        VerifyError::ExitCode { actual, expected } => {
-            eprintln!("--> error: exit code not equals");
-            eprintln!("    actual:   {}", actual);
-            eprintln!("    expected: {}", expected);
-        }
-    }
+fn print_error(error: &Error) {
+    eprintln!("{}", error.render());
 }
 
 /// Prints command line usage.
