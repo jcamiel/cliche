@@ -86,8 +86,8 @@ fn render_stdout_diff_str(actual: &str, expected: &str) -> String {
 
             return format!(
                 "--> error: stdout not equals (first difference on line {})\n\
-                     actual:   {actual}\n\
-                     expected: {expected}\n\
+                     actual:   <{actual}>\n\
+                     expected: <{expected}>\n\
                 ",
                 i + 1
             );
