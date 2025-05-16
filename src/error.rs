@@ -79,6 +79,11 @@ fn render_stdout_diff_str(actual: &str, expected: &str) -> String {
                 Some(s) => s,
                 None => "-",
             };
+            // Replace invisible chars with some placeholder
+            // TODO: manage all invisible
+            let actual = actual.replace(' ', "·");
+            let expected = expected.replace(' ', "·");
+
             return format!(
                 "--> error: stdout not equals (first difference on line {})\n\
                      actual:   {actual}\n\
