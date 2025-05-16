@@ -97,16 +97,23 @@ impl CommandSpec {
                     return Err(Error::StdoutPatternLinesCount);
                 }
 
-                let mut line = 0;
+                let mut row = 0;
+
                 for line_pat in expected_pat_lines.iter() {
+
+                    // TODO if the line does not contains pattern, do a simple match
                     // TODO: Test if pattern is valid
                     let line_pat = parse_pattern(line_pat);
                     let re = Regex::new(&line_pat).unwrap();
-                    if !re.is_match(actual_lines[line]) {
+                    let line = actual_lines[row];
+                    if !re.is_match(line) {
+                        println!("row: {}", row);
+                        println!("line pattern: <{}>", line_pat);
+                        println!("line: <{}>", line);
                         let err = Error::StdoutPatternCheck;
                         return Err(err);
                     }
-                    line += 1;
+                    row += 1;
                 }
             }
         };

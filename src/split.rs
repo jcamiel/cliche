@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn test_split() {
         let re = Regex::new(r"<<<([^>]+)>>>").unwrap();
-        let splitter = SplitCaptures::new(&re, r"<<<.*>>> aaa a avava <<<\d>>>");
+        let splitter = SplitCaptures::new(&re, r"Contexte de déploiement mis à disposition en <<<\d+>>>ms");
         for state in splitter {
             match state {
                 SplitState::Unmatched(t) => println!("unmatched: {:?}", t),
