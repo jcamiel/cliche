@@ -1,9 +1,10 @@
 use std::cmp::max;
 use std::path::PathBuf;
+use crate::text::{Format, Style, StyledString};
 
 pub enum Error {
     FileRead { path: PathBuf, cause: String },
-    ExitCodeCheck { expected: i32, actual: i32 },
+    ExitCodeCheck { expected: i32, actual: i32, stderr: Vec<u8>},
     StdoutCheck { expected: Vec<u8>, actual: Vec<u8> },
 }
 
@@ -14,13 +15,36 @@ impl Error {
                 let path = path.display();
                 format!("--> error: {path} {cause}")
             }
-            Error::ExitCodeCheck { actual, expected } => {
-                format!(
-                    "--> error: exit code not equals\n\
-                         actual:   {actual}\n\
-                         expected: {expected}\n\
-                    "
-                )
+            Error::ExitCodeCheck { actual, expected, stderr } => {
+                // TODO: write sdterr
+                let blue = Style::new().blue().bold();
+                let mut error = StyledString::new();
+
+                error.push_with("--> error", Style::new().bold().red());
+                error.push_with(": exit code not equals", Style::new().bold());
+                error.push("\n");
+               error.push_with("actual:", blue);
+                error.push("   ");
+                error.push(&actual.to_string());
+                error.push("\n");
+                error.push_with("expected:", blue);
+                error.push(" ");
+                error.push(&expected.to_string());
+                error.push("\n");
+                error.push_with("stderr:", blue);
+                let error = error.to_string(Format::Ansi);
+
+                // TODO: manage error on stderr to text
+                let stderr = String::from_utf8(stderr.clone()).unwrap();
+                let mut separator = StyledString::new();
+                separator.push_with("|", blue);
+                let separator = separator.to_string(Format::Ansi);
+                let stderr = stderr
+                    .lines()                              // Split by newline
+                    .map(|line| format!("{} {}", separator, line))     // Add '|' to each line
+                    .collect::<Vec<_>>()                  // Collect into a Vec<String>
+                    .join("\n");
+                format!("{error}\n{stderr}\n")
             }
             Error::StdoutCheck { actual, expected } => {
                 // We try to convert expected to string

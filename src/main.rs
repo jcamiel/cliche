@@ -2,15 +2,20 @@ use crate::command::CommandSpec;
 use crate::error::Error;
 use std::path::Path;
 use std::{env, io, process};
+use crate::text::{init_crate_colored, Format, Style, StyledString};
 
 mod command;
 mod error;
+mod text;
 
 const EXIT_OK: i32 = 0;
 const EXIT_IO_ERROR: i32 = 1;
 const EXIT_VERIFY_ERROR: i32 = 2;
 
 fn main() {
+    init_crate_colored();
+
+
     let args = env::args().collect::<Vec<_>>();
     if args.len() <= 1 {
         usage();
@@ -50,15 +55,27 @@ fn main() {
 }
 
 fn print_running(f: &Path) {
-    eprintln!("{}: Running", f.display())
+    let mut s = StyledString::new();
+    s.push_with("Running", Style::new().cyan().bold());
+    s.push(" ");
+    s.push_with(&f.display().to_string(), Style::new().bold());
+    eprintln!("{}", s.to_string(Format::Ansi));
 }
 
 fn print_success(f: &Path) {
-    eprintln!("{}: Success", f.display())
+    let mut s = StyledString::new();
+    s.push_with("Success", Style::new().green().bold());
+    s.push(" ");
+    s.push_with(&f.display().to_string(), Style::new().bold());
+    eprintln!("{}", s.to_string(Format::Ansi));
 }
 
 fn print_failure(f: &Path) {
-    eprintln!("{}: Failure", f.display())
+    let mut s = StyledString::new();
+    s.push_with("Failure", Style::new().red().bold());
+    s.push(" ");
+    s.push_with(&f.display().to_string(), Style::new().bold());
+    eprintln!("{}", s.to_string(Format::Ansi));
 }
 
 fn print_io_error(error: io::Error) {

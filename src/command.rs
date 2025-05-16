@@ -37,6 +37,7 @@ impl CommandSpec {
             let err = Error::ExitCodeCheck {
                 expected: self.exit_code,
                 actual: result.exit_code,
+                stderr: result.stderr.clone(),
             };
             return Err(err);
         }
