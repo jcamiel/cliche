@@ -1,11 +1,23 @@
+use crate::text::{Format, Style, StyledString};
 use std::cmp::max;
 use std::path::PathBuf;
-use crate::text::{Format, Style, StyledString};
 
 pub enum Error {
-    FileRead { path: PathBuf, cause: String },
-    ExitCodeCheck { expected: i32, actual: i32, stderr: Vec<u8>},
-    StdoutCheck { expected: Vec<u8>, actual: Vec<u8> },
+    FileRead {
+        path: PathBuf,
+        cause: String,
+    },
+    ExitCodeCheck {
+        expected: i32,
+        actual: i32,
+        stderr: Vec<u8>,
+    },
+    StdoutCheck {
+        expected: Vec<u8>,
+        actual: Vec<u8>,
+    },
+    StdoutPatternLinesCount,
+    StdoutPatternCheck,
 }
 
 impl Error {
@@ -15,7 +27,11 @@ impl Error {
                 let path = path.display();
                 format!("--> error: {path} {cause}")
             }
-            Error::ExitCodeCheck { actual, expected, stderr } => {
+            Error::ExitCodeCheck {
+                actual,
+                expected,
+                stderr,
+            } => {
                 // TODO: write sdterr
                 let blue = Style::new().blue().bold();
                 let mut error = StyledString::new();
@@ -23,7 +39,7 @@ impl Error {
                 error.push_with("--> error", Style::new().bold().red());
                 error.push_with(": exit code not equals", Style::new().bold());
                 error.push("\n");
-               error.push_with("actual:", blue);
+                error.push_with("actual:", blue);
                 error.push("   ");
                 error.push(&actual.to_string());
                 error.push("\n");
@@ -40,9 +56,9 @@ impl Error {
                 separator.push_with("|", blue);
                 let separator = separator.to_string(Format::Ansi);
                 let stderr = stderr
-                    .lines()                              // Split by newline
-                    .map(|line| format!("{} {}", separator, line))     // Add '|' to each line
-                    .collect::<Vec<_>>()                  // Collect into a Vec<String>
+                    .lines() // Split by newline
+                    .map(|line| format!("{} {}", separator, line)) // Add '|' to each line
+                    .collect::<Vec<_>>() // Collect into a Vec<String>
                     .join("\n");
                 format!("{error}\n{stderr}\n")
             }
@@ -56,6 +72,8 @@ impl Error {
                     Err(_) => render_stdout_diff_bytes(actual, expected),
                 }
             }
+            Error::StdoutPatternCheck => "--> error: stdout pattern".to_string(),
+            Error::StdoutPatternLinesCount => "--> error: stdout pattern lines count".to_string(),
         }
     }
 }
@@ -80,7 +98,7 @@ fn render_stdout_diff_str(actual: &str, expected: &str) -> String {
             };
             // Replace invisible chars with some placeholder
             // TODO: manage all invisible
-            // add coulors on first diff
+            // add colors on first diff
             let actual = replace_visible(actual);
             let expected = replace_visible(expected);
 
@@ -138,5 +156,7 @@ fn replace_visible(str: &str) -> String {
     tab.push_with("[\\tab]", yellow);
     let tab = tab.to_string(Format::Ansi);
 
-    str.replace('\n', &lf).replace('\r', &cr).replace('\t', &tab)
+    str.replace('\n', &lf)
+        .replace('\r', &cr)
+        .replace('\t', &tab)
 }

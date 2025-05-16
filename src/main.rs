@@ -1,11 +1,12 @@
 use crate::command::CommandSpec;
 use crate::error::Error;
+use crate::text::{Format, Style, StyledString, init_crate_colored};
 use std::path::Path;
 use std::{env, io, process};
-use crate::text::{init_crate_colored, Format, Style, StyledString};
 
 mod command;
 mod error;
+mod split;
 mod text;
 
 const EXIT_OK: i32 = 0;
@@ -14,7 +15,6 @@ const EXIT_VERIFY_ERROR: i32 = 2;
 
 fn main() {
     init_crate_colored();
-
 
     let args = env::args().collect::<Vec<_>>();
     if args.len() <= 1 {
