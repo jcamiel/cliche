@@ -17,8 +17,8 @@ pub fn eval_diff(expected: &[u8], actual: &[u8]) -> Option<Diff> {
     // and we compare them line by line.
     // We accept to have lossy UTF_8 conversion for actual string, but we expect valid UTF-8 string on
     // expected.
-    let expected_str = str::from_utf8(&expected);
-    let actual_str = String::from_utf8_lossy(&actual);
+    let expected_str = str::from_utf8(expected);
+    let actual_str = String::from_utf8_lossy(actual);
     match (expected_str, actual_str) {
         (Ok(expected), actual) => {
             // Two stdouts are UTF-8 valid (actual can have replacement chars `U+FFFD REPLACEMENT CHARACTER`)
@@ -28,7 +28,7 @@ pub fn eval_diff(expected: &[u8], actual: &[u8]) -> Option<Diff> {
         }
         _ => {
             // One of the stdout is not a valid UTF_8 string, we make a byte to byte comparison.
-            eval_diff_as_bytes(&expected, &actual)
+            eval_diff_as_bytes(expected, actual)
         }
     }
 }
@@ -36,8 +36,8 @@ pub fn eval_diff(expected: &[u8], actual: &[u8]) -> Option<Diff> {
 /// Returns the first line difference between an `expected` string and an `actual` string.
 fn eval_diff_as_str(expected: &str, actual: &str) -> Option<Diff> {
     let max_chunk_size = 64;
-    let expected = ChunkedLines::new(&expected, max_chunk_size).collect::<Vec<_>>();
-    let actual = ChunkedLines::new(&actual, max_chunk_size).collect::<Vec<_>>();
+    let expected = ChunkedLines::new(expected, max_chunk_size).collect::<Vec<_>>();
+    let actual = ChunkedLines::new(actual, max_chunk_size).collect::<Vec<_>>();
     let max_chunks = max(actual.len(), expected.len());
     for i in 0..max_chunks {
         let actual_chunk = actual.get(i);
@@ -99,7 +99,6 @@ fn eval_diff_as_bytes(_expected: &[u8], _actual: &[u8]) -> Option<Diff> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn test_diff_with_bad_encoding() {
         // Café in latin 1
@@ -115,7 +114,6 @@ mod tests {
             }
         );
     }
-
 
     #[test]
     fn test_diff_as_str() {

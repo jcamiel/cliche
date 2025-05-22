@@ -7,7 +7,6 @@ use std::{env, io, process};
 mod chunk;
 mod command;
 mod error;
-mod split;
 mod text;
 mod verify;
 

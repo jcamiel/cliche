@@ -1,6 +1,5 @@
 use crate::command::ExitCode;
 use crate::text::{Format, Style, StyledString};
-use std::cmp::max;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,69 +83,6 @@ impl Error {
             Error::StdoutPatternCheck => "--> error: StdoutPatternCheck".to_string(),
         }
     }
-}
-
-/// Renders a difference error between two string stdout.
-fn render_stdout_diff_str(actual: &str, expected: &str) -> String {
-    // Find first line differences. We split on \n so \r\n differences will be seen
-    let actual = actual.split_inclusive('\n').collect::<Vec<_>>();
-    let expected = expected.split_inclusive('\n').collect::<Vec<_>>();
-    let max_lines = max(actual.len(), expected.len());
-    for i in 0..max_lines {
-        let actual_line = actual.get(i);
-        let expected_line = expected.get(i);
-        if actual_line != expected_line {
-            let actual = match actual_line {
-                Some(s) => s,
-                None => "-",
-            };
-            let expected = match expected_line {
-                Some(s) => s,
-                None => "-",
-            };
-            // Replace invisible chars with some placeholder
-            // TODO: manage all invisible
-            // add colors on first diff
-            let actual = replace_visible(actual);
-            let expected = replace_visible(expected);
-
-            return format!(
-                "--> error: stdout not equals (first difference on line {})\n\
-                     actual:   <{actual}>\n\
-                     expected: <{expected}>\n\
-                ",
-                i + 1
-            );
-        }
-    }
-    panic!("difference not found")
-}
-
-/// Renders a difference error between two bytes stdout.
-fn render_stdout_diff_bytes(actual: &[u8], expected: &[u8]) -> String {
-    let max_bytes = max(actual.len(), expected.len());
-    for i in 0..max_bytes {
-        let actual_byte = actual.get(i);
-        let expected_byte = expected.get(i);
-        if actual_byte != expected_byte {
-            let actual = match actual_byte {
-                Some(s) => format!("{:02x}", s),
-                None => "-".to_string(),
-            };
-            let expected = match expected_byte {
-                Some(s) => format!("{:02x}", s),
-                None => "-".to_string(),
-            };
-            return format!(
-                "--> error: stdout not equals (first difference on byte {}\n\
-                     actual:   {actual}\n\
-                     expected: {expected}\n\
-                ",
-                i + 1
-            );
-        }
-    }
-    panic!("difference not found")
 }
 
 fn replace_visible(str: &str) -> String {
