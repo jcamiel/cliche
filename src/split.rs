@@ -11,7 +11,7 @@ impl<'r, 't> SplitCaptures<'r, 't> {
     fn new(re: &'r Regex, text: &'t str) -> SplitCaptures<'r, 't> {
         SplitCaptures {
             finder: re.captures_iter(text),
-            text: text,
+            text,
             last: 0,
             caps: None,
         }
@@ -73,7 +73,10 @@ mod tests {
     #[test]
     fn test_split() {
         let re = Regex::new(r"<<<([^>]+)>>>").unwrap();
-        let splitter = SplitCaptures::new(&re, r"Contexte de déploiement mis à disposition en <<<\d+>>>ms");
+        let splitter = SplitCaptures::new(
+            &re,
+            r"Contexte de déploiement mis à disposition en <<<\d+>>>ms",
+        );
         for state in splitter {
             match state {
                 SplitState::Unmatched(t) => println!("unmatched: {:?}", t),

@@ -4,10 +4,12 @@ use crate::text::{Format, Style, StyledString, init_crate_colored};
 use std::path::Path;
 use std::{env, io, process};
 
+mod chunk;
 mod command;
 mod error;
 mod split;
 mod text;
+mod verify;
 
 const EXIT_OK: i32 = 0;
 const EXIT_IO_ERROR: i32 = 1;
@@ -24,16 +26,26 @@ fn main() {
     let files = &args[1..];
     for f in files {
         let f = Path::new(f);
-        let status_code = 0;
-        let cmd_spec = CommandSpec::new(f, status_code);
 
-        // We execute our test
         print_running(f);
 
-        let ret = cmd_spec.execute();
-        let result = match ret {
-            Ok(result) => result,
+        let cmd_spec = CommandSpec::new(f);
+        let cmd_spec = match cmd_spec {
+            Ok(c) => c,
             Err(err) => {
+                clear();
+                print_io_error(err);
+                print_failure(f);
+                process::exit(EXIT_IO_ERROR);
+            }
+        };
+
+        // We execute our test
+        let cmd_result = cmd_spec.execute();
+        let cmd_result = match cmd_result {
+            Ok(c) => c,
+            Err(err) => {
+                clear();
                 print_io_error(err);
                 print_failure(f);
                 process::exit(EXIT_IO_ERROR);
@@ -41,10 +53,14 @@ fn main() {
         };
 
         // Now we can verify against the expected value:
-        let ret = cmd_spec.verify(&result);
-        match ret {
-            Ok(_) => print_success(f),
+        let check = verify::check_result(&cmd_spec, &cmd_result);
+        match check {
+            Ok(_) => {
+                clear();
+                print_success(f);
+            }
             Err(err) => {
+                clear();
                 print_error(&err);
                 print_failure(f);
                 process::exit(EXIT_VERIFY_ERROR);
@@ -86,6 +102,9 @@ fn print_error(error: &Error) {
     eprintln!("{}", error.render());
 }
 
+fn clear() {
+    eprint!("\x1B[1A\x1B[K");
+}
 /// Prints command line usage.
 fn usage() {
     println!("cliche, snapshot tests for CLIs.");

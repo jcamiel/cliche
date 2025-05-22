@@ -1,20 +1,32 @@
+use crate::command::ExitCode;
 use crate::text::{Format, Style, StyledString};
 use std::cmp::max;
 use std::path::PathBuf;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
+    /// There is an issue reading expected exit code (`foo.exit`).
+    ExpectedExitCodeFile {
+        path: PathBuf,
+        cause: String,
+    },
     FileRead {
         path: PathBuf,
         cause: String,
     },
+    /// The expected exit code and the actual exit code are not equals.
     ExitCodeCheck {
-        expected: i32,
-        actual: i32,
+        expected: ExitCode,
+        actual: ExitCode,
         stderr: Vec<u8>,
     },
-    StdoutCheck {
-        expected: Vec<u8>,
-        actual: Vec<u8>,
+    /// A chunk of line is different between the expected sdtout and the actual sdtout.
+    StdoutLineCheck {
+        cmd_path: PathBuf,
+        expected: Option<String>,
+        actual: Option<String>,
+        /// 1-based line index.
+        line: u64,
     },
     StdoutPatternLinesCount,
     StdoutPatternCheck,
@@ -23,57 +35,53 @@ pub enum Error {
 impl Error {
     pub fn render(&self) -> String {
         match self {
-            Error::FileRead { path, cause } => {
-                let path = path.display();
-                format!("--> error: {path} {cause}")
-            }
-            Error::ExitCodeCheck {
-                actual,
+            Error::ExpectedExitCodeFile { .. } => "--> error ExpectedExitCodeFile".to_string(),
+            Error::FileRead { .. } => "--> error FileRead".to_string(),
+            Error::ExitCodeCheck { .. } => "--> error ExitCodeCheck".to_string(),
+            Error::StdoutLineCheck {
+                cmd_path,
                 expected,
-                stderr,
+                actual,
+                line,
             } => {
-                // TODO: write sdterr
-                let blue = Style::new().blue().bold();
-                let mut error = StyledString::new();
+                let title = format!("Error stdout difference line {}", line);
+                let red_bold = Style::new().red().bold();
+                let bold = Style::new().bold();
+                let blue_bold = Style::new().blue().bold();
+                let yellow = Style::new().yellow();
 
-                error.push_with("--> error", Style::new().bold().red());
-                error.push_with(": exit code not equals", Style::new().bold());
-                error.push("\n");
-                error.push_with("actual:", blue);
-                error.push("   ");
-                error.push(&actual.to_string());
-                error.push("\n");
-                error.push_with("expected:", blue);
-                error.push(" ");
-                error.push(&expected.to_string());
-                error.push("\n");
-                error.push_with("stderr:", blue);
-                let error = error.to_string(Format::Ansi);
+                let mut s = StyledString::new();
+                s.push_with("error", red_bold);
+                s.push_with(":", bold);
+                s.push(" ");
+                s.push_with(&title, bold);
+                s.push("\n");
+                s.push_with("  script  :", blue_bold);
+                s.push(" ");
+                s.push(&cmd_path.display().to_string());
+                s.push("\n");
 
-                // TODO: manage error on stderr to text
-                let stderr = String::from_utf8(stderr.clone()).unwrap();
-                let mut separator = StyledString::new();
-                separator.push_with("|", blue);
-                let separator = separator.to_string(Format::Ansi);
-                let stderr = stderr
-                    .lines() // Split by newline
-                    .map(|line| format!("{} {}", separator, line)) // Add '|' to each line
-                    .collect::<Vec<_>>() // Collect into a Vec<String>
-                    .join("\n");
-                format!("{error}\n{stderr}\n")
+                let expected = expected.clone().unwrap_or("".to_string());
+                let expected = replace_visible(&expected);
+                s.push_with("  expected:", blue_bold);
+                s.push(" ");
+                s.push_with("<", yellow);
+                s.push(&expected);
+                s.push_with(">", yellow);
+                s.push("\n");
+
+                let actual = actual.clone().unwrap_or("".to_string());
+                let actual = replace_visible(&actual);
+                s.push_with("  actual  :", blue_bold);
+                s.push(" ");
+                s.push_with("<", yellow);
+                s.push(&actual);
+                s.push_with(">", yellow);
+                s.push("\n");
+                s.to_string(Format::Ansi)
             }
-            Error::StdoutCheck { actual, expected } => {
-                // We try to convert expected to string
-                match String::from_utf8(expected.clone()) {
-                    Ok(expected_str) => match String::from_utf8(actual.clone()) {
-                        Ok(actual_str) => render_stdout_diff_str(&actual_str, &expected_str),
-                        Err(_) => render_stdout_diff_bytes(actual, expected),
-                    },
-                    Err(_) => render_stdout_diff_bytes(actual, expected),
-                }
-            }
-            Error::StdoutPatternCheck => "--> error: stdout pattern".to_string(),
-            Error::StdoutPatternLinesCount => "--> error: stdout pattern lines count".to_string(),
+            Error::StdoutPatternLinesCount => "--> error: StdoutPatternLinesCount".to_string(),
+            Error::StdoutPatternCheck => "--> error: StdoutPatternCheck".to_string(),
         }
     }
 }
