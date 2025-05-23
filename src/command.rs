@@ -1,12 +1,14 @@
 use crate::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::{fs, io};
+use std::{fmt, fs, io};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ExitCode(i32);
 
 impl ExitCode {
+    #[allow(dead_code)]
     pub fn as_i32(self) -> i32 {
         self.0
     }
@@ -17,11 +19,20 @@ impl From<i32> for ExitCode {
         ExitCode(value)
     }
 }
+
+impl fmt::Display for ExitCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+
 /// Represents a command specification
 pub struct CommandSpec {
     cmd_path: PathBuf,
     stdout_path: Option<PathBuf>,
     stdout_pat_path: Option<PathBuf>,
+    stderr_path: Option<PathBuf>,
     exit_code_path: Option<PathBuf>,
 }
 
@@ -29,35 +40,16 @@ impl CommandSpec {
     /// Creates a new expected command spec using script at `cmd_path`.
     pub fn new(cmd_path: &Path) -> Result<Self, io::Error> {
         let cmd_path = fs::canonicalize(cmd_path)?;
-
-        let mut stdout_path = cmd_path.clone();
-        stdout_path.set_extension("out");
-        let stdout_path = if stdout_path.exists() {
-            Some(stdout_path)
-        } else {
-            None
-        };
-
-        let mut stdout_pat_path = cmd_path.clone();
-        stdout_pat_path.set_extension("out.pattern");
-        let stdout_pat_path = if stdout_pat_path.exists() {
-            Some(stdout_pat_path)
-        } else {
-            None
-        };
-
-        let mut exit_code_path = cmd_path.clone();
-        exit_code_path.set_extension("exit");
-        let exit_code_path = if exit_code_path.exists() {
-            Some(exit_code_path)
-        } else {
-            None
-        };
+        let stdout_path = with_ext(&cmd_path, "out");
+        let stdout_pat_path = with_ext(&cmd_path, "out.pattern");
+        let exit_code_path = with_ext(&cmd_path, "exit");
+        let stderr_path = with_ext(&cmd_path, "err");
 
         Ok(CommandSpec {
             cmd_path,
             stdout_path,
             stdout_pat_path,
+            stderr_path,
             exit_code_path,
         })
     }
@@ -73,7 +65,7 @@ impl CommandSpec {
     }
 
     /// Returns the expected code for this command spec.
-    pub fn expected_exit_code(&self) -> Result<ExitCode, Error> {
+    pub fn exit_code(&self) -> Result<ExitCode, Error> {
         let Some(exit_code_path) = &self.exit_code_path else {
             return Ok(ExitCode(0));
         };
@@ -81,30 +73,33 @@ impl CommandSpec {
         let exit_code = match fs::read(exit_code_path) {
             Ok(s) => s,
             Err(err) => {
-                return Err(Error::ExpectedExitCodeFile {
+                return Err(Error::FileRead {
                     path: exit_code_path.clone(),
                     cause: err.to_string(),
                 });
             }
         };
         let Ok(exit_code) = String::from_utf8(exit_code.clone()) else {
-            return Err(Error::ExpectedExitCodeFile {
+            return Err(Error::FileNotUtf8 {
                 path: exit_code_path.clone(),
-                cause: "`.exit` file encoding must use UTF-8".to_string(),
             });
         };
         let exit_code = exit_code.trim();
         let Ok(exit_code) = exit_code.parse::<i32>() else {
-            return Err(Error::ExpectedExitCodeFile {
+            return Err(Error::FileNotInteger {
                 path: exit_code_path.clone(),
-                cause: "`.exit` file can not be converted to integer exit code".to_string(),
             });
         };
         Ok(ExitCode(exit_code))
     }
 
+    /// Returns `true` if this command has expected stdout, `false` otherwise.
+    pub fn has_stdout(&self) -> bool {
+        self.stdout_path.is_some()
+    }
+
     /// Returns the expected stdout buffer for this command spec.
-    pub fn expected_stdout(&self) -> Result<Vec<u8>, Error> {
+    pub fn stdout(&self) -> Result<Vec<u8>, Error> {
         let Some(stdout_path) = &self.stdout_path else {
             return Ok(vec![]);
         };
@@ -118,6 +113,55 @@ impl CommandSpec {
             }
         };
         Ok(stdout)
+    }
+
+    /// Returns `true` if this command has expected stdout, `false` otherwise.
+    pub fn has_stdout_pat(&self) -> bool {
+        self.stdout_pat_path.is_some()
+    }
+
+    /// Returns the expected patterned stdout buffer for this command spec.
+    /// For the moment, we only deal with UTF-8 pattern stdout
+    pub fn stdout_pat(&self) -> Result<String, Error> {
+        let Some(stdout_pat_path) = &self.stdout_pat_path else {
+            return Ok("".to_string());
+        };
+        let stdout_pat = match fs::read(stdout_pat_path) {
+            Ok(s) => s,
+            Err(err) => {
+                return Err(Error::FileRead {
+                    path: stdout_pat_path.clone(),
+                    cause: err.to_string(),
+                });
+            }
+        };
+        let Ok(stdout_pat) = String::from_utf8(stdout_pat) else {
+            return Err(Error::FileNotUtf8 {
+                path: stdout_pat_path.clone(),
+            });
+        };
+        Ok(stdout_pat)
+    }
+
+    pub fn has_stderr(&self) -> bool {
+        self.stderr_path.is_some()
+    }
+
+    /// Returns the expected stderr buffer for this command spec.
+    pub fn stderr(&self) -> Result<Vec<u8>, Error> {
+        let Some(stderr_path) = &self.stderr_path else {
+            return Ok(vec![]);
+        };
+        let stderr = match fs::read(stderr_path) {
+            Ok(s) => s,
+            Err(err) => {
+                return Err(Error::FileRead {
+                    path: stderr_path.clone(),
+                    cause: err.to_string(),
+                });
+            }
+        };
+        Ok(stderr)
     }
 
     pub fn cmd_path(&self) -> &Path {
@@ -152,4 +196,10 @@ impl CommandResult {
     pub fn stderr(&self) -> &[u8] {
         &self.stderr
     }
+}
+
+fn with_ext(path: &Path, ext: &str) -> Option<PathBuf> {
+    let mut path = path.to_path_buf();
+    path.set_extension(ext);
+    if path.exists() { Some(path) } else { None }
 }
