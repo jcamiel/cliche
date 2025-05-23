@@ -56,7 +56,7 @@ impl Error {
             Error::FileRead { .. } => "--> error FileRead".to_string(),
             Error::FileNotUtf8 { .. } => "--> error FileNotUtf8".to_string(),
             Error::FileNotInteger { .. } => "--> error FileNotInteger".to_string(),
-            Error::CheckExitCode { cmd_path, expected, actual, .. } => {
+            Error::CheckExitCode { cmd_path, expected, actual, stderr } => {
                 let title = "Exit code doesn't match";
                 let script_title   = "  script  :";
                 let expected_title = "  expected:";
@@ -69,6 +69,7 @@ impl Error {
                     *expected,
                     actual_title,
                     *actual,
+                    stderr,
                     Format::Ansi,
                 )
             },
@@ -218,6 +219,7 @@ fn diff_exit(
     expected: ExitCode,
     actual_title: &str,
     actual: ExitCode,
+    stderr: &[u8],
     format: Format,
 ) -> String {
     let red_bold = Style::new().red().bold();
@@ -244,5 +246,19 @@ fn diff_exit(
     s.push(" ");
     s.push(&actual.to_string());
     s.push("\n");
+
+    // TODO: manage error on stderr to text
+    if !stderr.is_empty() {
+        let stderr = String::from_utf8_lossy(stderr);
+        stderr
+            .lines() // Split by newline
+            .for_each( |line| {
+                s.push_with("|", blue_bold);
+                s.push(" ");
+                s.push(line);
+                s.push("\n");
+            })
+    }
+
     s.to_string(format)
 }
