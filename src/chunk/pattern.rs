@@ -83,6 +83,10 @@ impl Iterator for PatternLines<'_> {
             // Test if we have a start of a new pattern
             if self.is_pattern_start() {
                 // Now, we're constructing a pattern
+                // If we're previously in a no pattern mode, we need to escape the current line
+                if self.read_state == ReadState::WithoutPattern {
+                    self.line = regex::escape(&self.line);
+                }
                 self.read_state = ReadState::WithPattern;
 
                 // We read the regex inside the pattern
@@ -97,7 +101,14 @@ impl Iterator for PatternLines<'_> {
                 self.line.push_str(&pat);
             } else {
                 self.chars.next();
-                self.line.push(c);
+
+                // If we are in a patterned line, we need to properly escape char literals
+                if self.read_state == ReadState::WithPattern {
+                    let escaped = regex::escape(&c.to_string());
+                    self.line.push_str(&escaped);
+                } else {
+                    self.line.push(c);
+                }
             }
 
             // We test if we need to finish our chunk
@@ -228,5 +239,29 @@ mod tests {
         let mut lines = PatternLines::new(input);
         let line = lines.next().unwrap();
         assert!(line.is_err());
+    }
+
+    #[test]
+    fn test_escaped_char_in_regex() {
+        let input = "<<<.*>>>[main";
+        let mut lines = PatternLines::new(input);
+        assert_eq!(
+            lines.next(),
+            Some(Ok(PatternLine::Pattern(Regex::new(".*\\[main").unwrap())))
+        );
+
+        let input = "[main<<<.*>>>";
+        let mut lines = PatternLines::new(input);
+        assert_eq!(
+            lines.next(),
+            Some(Ok(PatternLine::Pattern(Regex::new("\\[main.*").unwrap())))
+        );
+
+        let input = "[main";
+        let mut lines = PatternLines::new(input);
+        assert_eq!(
+            lines.next(),
+            Some(Ok(PatternLine::NoPattern("[main".to_string())))
+        );
     }
 }

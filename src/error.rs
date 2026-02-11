@@ -56,13 +56,18 @@ impl Error {
             Error::FileRead { .. } => "--> error FileRead".to_string(),
             Error::FileNotUtf8 { .. } => "--> error FileNotUtf8".to_string(),
             Error::FileNotInteger { .. } => "--> error FileNotInteger".to_string(),
-            Error::CheckExitCode { cmd_path, expected, actual, stderr } => {
+            Error::CheckExitCode {
+                cmd_path,
+                expected,
+                actual,
+                stderr,
+            } => {
                 let title = "Exit code doesn't match";
-                let script_title   = "  script  :";
+                let script_title = "  script  :";
                 let expected_title = "  expected:";
-                let actual_title   = "  actual  :";
+                let actual_title = "  actual  :";
                 diff_exit(
-                    &title,
+                    title,
                     script_title,
                     cmd_path,
                     expected_title,
@@ -72,7 +77,7 @@ impl Error {
                     stderr,
                     Format::Ansi,
                 )
-            },
+            }
             Error::CheckStdoutLine {
                 cmd_path,
                 expected,
@@ -210,7 +215,7 @@ fn diff_text(
     s.to_string(format)
 }
 
-
+#[allow(clippy::too_many_arguments)]
 fn diff_exit(
     title: &str,
     script_title: &str,
@@ -252,7 +257,7 @@ fn diff_exit(
         let stderr = String::from_utf8_lossy(stderr);
         stderr
             .lines() // Split by newline
-            .for_each( |line| {
+            .for_each(|line| {
                 s.push_with("|", blue_bold);
                 s.push(" ");
                 s.push(line);

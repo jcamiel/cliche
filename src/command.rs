@@ -1,8 +1,8 @@
 use crate::error::Error;
+use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fmt, fs, io};
-use std::fmt::{Debug, Formatter};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ExitCode(i32);
@@ -25,7 +25,6 @@ impl fmt::Display for ExitCode {
         std::fmt::Display::fmt(&self.0, f)
     }
 }
-
 
 /// Represents a command specification
 pub struct CommandSpec {
